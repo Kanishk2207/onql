@@ -1,0 +1,63 @@
+# stack.yaml (release, images only)
+
+x-onql-env: &onql_env
+  NATS_URL: ${NATS_URL:-nats://nats:4222}
+
+x-ulimits: &ulims
+  nofile: { soft: 200000, hard: 200000 }
+
+services:
+  nats:
+    image: docker.io/nats:2.10-alpine
+    command: ["-js","-m","8222","-sd","/data"]
+    volumes: ["nats-data:/data"]
+    networks: [appnet]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/varz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  onql:
+    image: docker.io/autobitdevs/onql:server-latest
+    environment: *onql_env
+    depends_on:
+      nats:
+        condition: service_healthy
+    ports:
+      - "${ONQL_PORT:-5656}:5656"
+    networks: [appnet]
+    restart: unless-stopped
+    volumes:
+      - onql-store:/store
+    ulimits: *ulims
+    labels:
+      com.centurylinklabs.watchtower.enable: "${WATCHTOWER_ENABLE:-false}"
+
+  schema:
+    image: docker.io/autobitdevs/onql:schema-latest
+    environment: *onql_env
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks: [appnet]
+    restart: unless-stopped
+    ulimits: *ulims
+
+  protocol:
+    image: docker.io/autobitdevs/onql:protocol-latest
+    environment: *onql_env
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks: [appnet]
+    restart: unless-stopped
+    ulimits: *ulims
+
+networks:
+  appnet: { driver: bridge }
+
+volumes:
+  nats-data:
+  onql-store:

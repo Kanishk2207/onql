@@ -1,0 +1,14 @@
+store/*
+
+# VS code generated files
+.qodo 
+.vscode/
+
+myenv/
+exe
+*.exe
+*.exe~
+
+logs/
+
+build/

@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  onql:
+    build:
+      context: ..                     # keep root context (go.mod is here)
+      dockerfile: docker/onql.dockerfile
+    image: ${DOCKER_USER:-AutobitDevs}/onql:server-latest  
+  
+  schema:
+    build:
+      context: ../extensions/schema    # narrow context
+      dockerfile: ../../docker/ext.dockerfile
+    image: ${DOCKER_USER:-AutobitDevs}/onql:schema-latest  
+   
+  protocol:
+    build:
+      context: ../extensions/protocol  # narrow context
+      dockerfile: ../../docker/ext.dockerfile
+    image: ${DOCKER_USER:-AutobitDevs}/onql:protocol-latest 
+    
+networks:
+  appnet: { driver: bridge }
+
+volumes:
+  nats-data:

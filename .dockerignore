@@ -1,0 +1,32 @@
+# Ignore EVERYTHING by default
+**
+
+# Allow only what's needed for the Go build & compose files
+!.dockerignore
+!docker/**
+
+# Go module + sources (adjust the list to match your Go packages)
+!go.mod
+!go.sum
+!cmd/**
+!internal/**
+!pkg/**
+!config/**
+!database/**
+!dsl/**
+!engine/**
+!router/**
+!server/**
+!storemanager/**
+!extensions/registry.json
+!utils/**
+!*.go
+
+# Re-exclude heavy junk even inside allowed folders
+**/myenv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/.mypy_cache/
+**/.pytest_cache/
+*.log
