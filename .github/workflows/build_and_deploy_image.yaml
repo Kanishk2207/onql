@@ -1,0 +1,45 @@
+name: Push images & publish stack
+
+on:
+  push:
+    paths:
+      - 'docker/**'
+  workflow_dispatch:
+
+env:
+  DOCKERHUB_REPO_NS: autobitdevs
+  STACK_ARTIFACT_REF: docker.io/autobitdevs/onql-stack:latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docker  # you said: cd docker/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker login (Docker Hub)
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # (optional) Ensure a recent Compose with 'publish' support
+      - name: Install latest Docker Compose plugin
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+            -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+          docker compose version
+
+      # Build & push images defined in your build compose (adjust filename/services if needed)
+      - name: Build & push images
+        run: |
+          docker compose -f compose.yml build --push \
+            onql schema protocol
+
+      # Publish stack.yaml as an OCI Compose artifact (to onql-stack:latest)
+      - name: Publish stack.yaml as Compose OCI
+        run: |
+          docker compose -f stack.yaml publish --resolve-image-digests -y "$STACK_ARTIFACT_REF"
