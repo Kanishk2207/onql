@@ -146,7 +146,7 @@ func (e *Evaluator) EvalComparisonOperator() error {
 	if stmt.Operation != parser.OpNormalOperation {
 		return errors.New("expect comparison operator")
 	}
-
+	operationOn := "NUMBER"
 	op1Str := ""
 	op2Str := ""
 	op1Num := 0.0
@@ -170,6 +170,7 @@ func (e *Evaluator) EvalComparisonOperator() error {
 			}
 			return errors.New("invalid data type on left operand")
 		}
+		operationOn = strings.ToUpper(e.Memory[e.Plan.StatementMap[expression[0]].Name+"_meta_type"].(string))
 	} else {
 		switch strings.ToUpper(stmt.Meta["left_type"]) {
 		case "STRING":
@@ -183,6 +184,7 @@ func (e *Evaluator) EvalComparisonOperator() error {
 		default:
 			return errors.New("invalid data type on left operand")
 		}
+		operationOn = strings.ToUpper(stmt.Meta["left_type"])
 	}
 	//set right operand
 	if stmt.Meta["right_type"] == "var" {
@@ -228,7 +230,7 @@ func (e *Evaluator) EvalComparisonOperator() error {
 
 	var result bool
 
-	if op1Str != "" {
+	if operationOn == "STRING" {
 		switch expression[1] {
 		case "=":
 			// Handle equality
