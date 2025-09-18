@@ -71,3 +71,13 @@ services:
     networks: [appnet]
     restart: unless-stopped
     profiles: ["ext"]
+
+volumes:
+  # NATS state (implicit create is fine; defined here for clarity)
+  nats_data: {}
+  # ONQL data — external to prevent accidental re-creation
+  onql_store:
+    external: true
+    # PARAMETERIZE so you can reuse the same stack for many installs
+    # Create this volume once:  docker volume create onql_a_onql_store
+    name: ${ONQL_VOLUME_NAME:-onql_a_onql_store}
