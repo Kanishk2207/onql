@@ -32,7 +32,7 @@ func (e *Evaluator) EvalTableWithContext() error {
 		return e.EvalTable()
 	}
 	for i, v := range e.ContextValues {
-		cntxQuery = strings.Replace(cntxQuery, "$"+strconv.Itoa(i+1), v, 1)
+		cntxQuery = strings.Replace(cntxQuery, "$"+strconv.Itoa(i+1), "\""+v+"\"", 1)
 	}
 	lexer := parser.NewLexer(cntxQuery)
 	plan := parser.NewPlan(lexer, e.Plan.ProtocolPass)
