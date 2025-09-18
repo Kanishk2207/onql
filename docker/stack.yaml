@@ -42,7 +42,7 @@ services:
     volumes:
       - type: bind
         source: ${ONQL_HOST_DIR:-/srv/onql_a/store}
-        target: /store
+        target: /app/store
         read_only: false
         # For SELinux systems, uncomment:
         # bind:
