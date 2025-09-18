@@ -14,9 +14,11 @@ services:
   schema:
     build:
       context: ../extensions/schema
+      dockerfile: ../../docker/ext.dockerfile
     image: ${DOCKER_USER:-autobitdevs}/onql-schema:${VERSION:-1.3.0}
 
   protocol:
     build:
       context: ../extensions/protocol
+      dockerfile: ../../docker/ext.dockerfile
     image: ${DOCKER_USER:-autobitdevs}/onql-protocol:${VERSION:-1.3.0}
