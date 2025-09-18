@@ -4,6 +4,11 @@ on:
   push:
     paths:
       - 'docker/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'extensions/**'
+      - '**/*.go'
   workflow_dispatch:
 
 env:
@@ -15,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: docker  # you said: cd docker/
+        working-directory: docker
 
     steps:
       - name: Checkout
@@ -24,7 +29,7 @@ jobs:
       - name: Docker login (Docker Hub)
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      # (optional) Ensure a recent Compose with 'publish' support
+      # (Optional) Make sure compose is new enough for `publish`
       - name: Install latest Docker Compose plugin
         run: |
           mkdir -p ~/.docker/cli-plugins
@@ -33,13 +38,12 @@ jobs:
           chmod +x ~/.docker/cli-plugins/docker-compose
           docker compose version
 
-      # Build & push images defined in your build compose (adjust filename/services if needed)
+      # Build + push the images defined in docker/compose.build.yml
       - name: Build & push images
         run: |
-          docker compose -f compose.yml build --push \
-            onql schema protocol
+          docker compose -f compose.build.yml build --push onql schema protocol
 
-      # Publish stack.yaml as an OCI Compose artifact (to onql-stack:latest)
+      # Publish docker/stack.yaml as an OCI Compose artifact
       - name: Publish stack.yaml as Compose OCI
         run: |
           docker compose -f stack.yaml publish --resolve-image-digests -y "$STACK_ARTIFACT_REF"
