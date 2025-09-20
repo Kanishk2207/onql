@@ -6,15 +6,15 @@ import (
 )
 
 var AggrRegistry = map[string]map[string]string{
-	"_sum":      {"LIST": "NUMBER", "TABLE": "NUMBER"},
-	"_count":    {"LIST": "NUMBER", "TABLE": "NUMBER"},
-	"_avg":      {"LIST": "NUMBER"},
-	"_min":      {"LIST": "NUMBER"},
-	"_max":      {"LIST": "NUMBER"},
-	"_date":     {"LIST": "STRING"},
+	"_sum":    {"LIST": "NUMBER", "TABLE": "NUMBER"},
+	"_count":  {"LIST": "NUMBER", "TABLE": "NUMBER"},
+	"_avg":    {"LIST": "NUMBER"},
+	"_min":    {"LIST": "NUMBER"},
+	"_max":    {"LIST": "NUMBER"},
+	"_date":   {"LIST": "STRING"},
 	"_unique": {"LIST": "LIST", "TABLE": "TABLE"},
-	"_asc":      {"LIST": "LIST", "TABLE": "TABLE"},
-	"_desc":     {"LIST": "LIST", "TABLE": "TABLE"},
+	"_asc":    {"LIST": "LIST", "TABLE": "TABLE"},
+	"_desc":   {"LIST": "LIST", "TABLE": "TABLE"},
 }
 
 func (plan *Plan) ParseAggr(stmt *Statement, dependency string) error {
@@ -62,7 +62,7 @@ func (plan *Plan) GetAggrReturnType(aggrName, inputStmtName string) (string, err
 	inputStmt := plan.StatementMap[inputStmtName]
 	inpType := ""
 	switch inputStmt.Operation {
-	case OpAccessTable, OpAccessRelatedTable:
+	case OpAccessTable, OpAccessRelatedTable, OpEndFilter:
 		inpType = "TABLE"
 	case OpAccessList:
 		inpType = "LIST"
