@@ -100,7 +100,7 @@ func (plan *Plan) GetAggrInputTypeFromOperationType(ot OperationType) string {
 	switch ot {
 	case OpLiteral:
 		return "NUMBER"
-	case OpAccessTable, OpAccessRelatedTable:
+	case OpAccessTable, OpAccessRelatedTable, OpEndFilter:
 		return "TABLE"
 	case OpAccessField:
 		return "FIELD"

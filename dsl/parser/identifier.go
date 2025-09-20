@@ -159,6 +159,21 @@ func (plan *Plan) parseIdentifierListOrRowOrFieldOrAggr(stmt *Statement, prevStm
 		if err != nil {
 			return err
 		}
+		// Aggregate or json (not implemented)
+		// if plan.IsAggr(token.Value) {
+		// 	err := plan.ParseAggr(stmt, prevStmt.Name)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	return nil
+		// } else {
+		// 	//parse unknown identifier
+		// 	err := plan.ParseUnknownIdentifier(stmt, prevStmt)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// 	return nil
+		// }
 	}
 	return nil
 }

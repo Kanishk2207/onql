@@ -18,6 +18,7 @@ type updateData struct {
 	Table     string                 `json:"table"`
 	Records   map[string]interface{} `json:"records"`
 	Query     string                 `json:"query"`
+	Ids       string                 `json:"ids"`
 	Protopass string                 `json:"protopass"`
 }
 
@@ -25,6 +26,7 @@ type deleteData struct {
 	DB        string `json:"db"`
 	Table     string `json:"table"`
 	Query     string `json:"query"`
+	Ids       string `json:"ids"`
 	Protopass string `json:"protopass"`
 }
 
@@ -122,6 +124,23 @@ func HandleUpdate(msg *Message) {
 			return
 		}
 	}
+
+	if updData.Ids != "" {
+		err := json.Unmarshal([]byte(updData.Ids), &pks)
+		if err != nil {
+			payload, _ := json.Marshal(map[string]string{"error": err.Error()})
+			rMsg := &Message{
+				ID:      "cud",
+				RID:     msg.RID,
+				Target:  msg.ID,
+				Payload: string(payload),
+				Type:    "response",
+			}
+			Route(rMsg)
+			return
+		}
+	}
+
 	payload := ""
 	payloadError := ""
 
@@ -136,6 +155,11 @@ func HandleUpdate(msg *Message) {
 			payload = "success"
 		}
 	}
+
+	if len(pks) == 0 {
+		payload = "success"
+	}
+
 	response, _ := json.Marshal(map[string]string{"error": payloadError, "data": payload})
 
 	rMsg := &Message{
@@ -199,13 +223,34 @@ func HandleDelete(msg *Message) {
 			return
 		}
 	}
+
+	if delData.Ids != "" {
+		err := json.Unmarshal([]byte(delData.Ids), &pks)
+		if err != nil {
+			payload, _ := json.Marshal(map[string]string{"error": err.Error()})
+			rMsg := &Message{
+				ID:      "cud",
+				RID:     msg.RID,
+				Target:  msg.ID,
+				Payload: string(payload),
+				Type:    "response",
+			}
+			Route(rMsg)
+			return
+		}
+	}
+	
 	payload := ""
 	payloadError := ""
 
 	// Call the delete function
-	err := database.Delete(delData.DB, delData.Table, pks)
-	if err != nil {
-		payloadError = err.Error()
+	if len(pks) != 0 {
+		err := database.Delete(delData.DB, delData.Table, pks)
+		if err != nil {
+			payloadError = err.Error()
+		} else {
+			payload = "success"
+		}
 	} else {
 		payload = "success"
 	}
