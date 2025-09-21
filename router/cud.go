@@ -18,16 +18,16 @@ type updateData struct {
 	Table     string                 `json:"table"`
 	Records   map[string]interface{} `json:"records"`
 	Query     string                 `json:"query"`
-	Ids       string                 `json:"ids"`
+	Ids       []string               `json:"ids"`
 	Protopass string                 `json:"protopass"`
 }
 
 type deleteData struct {
-	DB        string `json:"db"`
-	Table     string `json:"table"`
-	Query     string `json:"query"`
-	Ids       string `json:"ids"`
-	Protopass string `json:"protopass"`
+	DB        string   `json:"db"`
+	Table     string   `json:"table"`
+	Query     string   `json:"query"`
+	Ids       []string `json:"ids"`
+	Protopass string   `json:"protopass"`
 }
 
 // insert with records
@@ -125,20 +125,21 @@ func HandleUpdate(msg *Message) {
 		}
 	}
 
-	if updData.Ids != "" && updData.Ids != "[]" {
-		err := json.Unmarshal([]byte(updData.Ids), &pks)
-		if err != nil {
-			payload, _ := json.Marshal(map[string]string{"error": err.Error()})
-			rMsg := &Message{
-				ID:      "cud",
-				RID:     msg.RID,
-				Target:  msg.ID,
-				Payload: string(payload),
-				Type:    "response",
-			}
-			Route(rMsg)
-			return
-		}
+	if len(updData.Ids) != 0 {
+		// err := json.Unmarshal([]byte(updData.Ids), &pks)
+		// if err != nil {
+		// 	payload, _ := json.Marshal(map[string]string{"error": err.Error()})
+		// 	rMsg := &Message{
+		// 		ID:      "cud",
+		// 		RID:     msg.RID,
+		// 		Target:  msg.ID,
+		// 		Payload: string(payload),
+		// 		Type:    "response",
+		// 	}
+		// 	Route(rMsg)
+		// 	return
+		// }
+		pks = updData.Ids
 	}
 
 	payload := ""
@@ -224,20 +225,21 @@ func HandleDelete(msg *Message) {
 		}
 	}
 
-	if delData.Ids != "" && delData.Ids != "[]" {
-		err := json.Unmarshal([]byte(delData.Ids), &pks)
-		if err != nil {
-			payload, _ := json.Marshal(map[string]string{"error": err.Error()})
-			rMsg := &Message{
-				ID:      "cud",
-				RID:     msg.RID,
-				Target:  msg.ID,
-				Payload: string(payload),
-				Type:    "response",
-			}
-			Route(rMsg)
-			return
-		}
+	if len(delData.Ids) != 0 {
+		// err := json.Unmarshal([]byte(delData.Ids), &pks)
+		// if err != nil {
+		// 	payload, _ := json.Marshal(map[string]string{"error": err.Error()})
+		// 	rMsg := &Message{
+		// 		ID:      "cud",
+		// 		RID:     msg.RID,
+		// 		Target:  msg.ID,
+		// 		Payload: string(payload),
+		// 		Type:    "response",
+		// 	}
+		// 	Route(rMsg)
+		// 	return
+		// }
+		pks = delData.Ids
 	}
 
 	payload := ""
