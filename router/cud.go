@@ -125,7 +125,7 @@ func HandleUpdate(msg *Message) {
 		}
 	}
 
-	if updData.Ids != "" {
+	if updData.Ids != "" && updData.Ids != "[]" {
 		err := json.Unmarshal([]byte(updData.Ids), &pks)
 		if err != nil {
 			payload, _ := json.Marshal(map[string]string{"error": err.Error()})
@@ -224,7 +224,7 @@ func HandleDelete(msg *Message) {
 		}
 	}
 
-	if delData.Ids != "" {
+	if delData.Ids != "" && delData.Ids != "[]" {
 		err := json.Unmarshal([]byte(delData.Ids), &pks)
 		if err != nil {
 			payload, _ := json.Marshal(map[string]string{"error": err.Error()})
@@ -239,7 +239,7 @@ func HandleDelete(msg *Message) {
 			return
 		}
 	}
-	
+
 	payload := ""
 	payloadError := ""
 
