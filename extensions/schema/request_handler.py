@@ -46,6 +46,9 @@ class RequestHandler:
                 return await self.schema.DropTable(command[2],command[3])
         elif command[0] == "set":
             return await self.set(command[1])
+        elif command[0] == "refresh-indexes":
+            return await self.schema.RefereshIndexes()
+
 
 
     async def set(self,data):

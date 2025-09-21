@@ -190,7 +190,7 @@ func AlterTable(db, table string, alters map[string]map[string]string) error {
 	}
 
 	// regenerate indexes here
-	alterIndex(da)
+	AlterIndex(da)
 	return nil
 }
 

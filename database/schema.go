@@ -348,3 +348,7 @@ func DeleteTable(db, table string) error {
 	SetFullSchema(schema)
 	return nil
 }
+
+func RefereshIndexes() error {
+	return storemanager.RefereshIndex()
+}

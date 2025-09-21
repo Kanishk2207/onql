@@ -168,7 +168,7 @@ func GetPksFromIndex(indexKey string) []string {
 }
 
 // chen schema changed
-func alterIndex(da DataAlter) error {
+func AlterIndex(da DataAlter) error {
 	// Step 1: Identify index directory for the table
 	indexDir := filepath.Join("store", da.db, da.table, "index")
 
@@ -210,6 +210,56 @@ func alterIndex(da DataAlter) error {
 		}
 	}
 
+	return nil
+}
+
+func RefereshIndex() error {
+	schema := FullSchema
+	for db, tables := range schema {
+		for table, _ := range tables {
+			// Step 1: Identify index directory for the table
+			indexDir := filepath.Join("store", db, table, "index")
+
+			// Step 2: Close all open BadgerDBs related to this index directory
+			for path, store := range diskStore {
+				if strings.HasPrefix(path, indexDir) {
+					_ = store.Close()       // Close DB instance
+					delete(diskStore, path) // Remove from global store map
+				}
+			}
+
+			// Step 3: Delete index directory from disk
+			if err := os.RemoveAll(indexDir); err != nil {
+				return fmt.Errorf("failed to remove index directory: %v", err)
+			}
+
+			// Step 4: Fetch latest schema
+			newSchema, err := GetTableSchema(db, table)
+			if err != nil {
+				return err
+			}
+
+			// Step 5: Rebuild indexes
+			tableStores := getTableDataStores(db, table)
+			for _, store := range tableStores {
+				pks := getAllKeysFromStore(store, db, table)
+				dataRows, _ := GetData(db, table, pks)
+				for _, row := range dataRows {
+					data := Data{
+						db:       db,
+						table:    table,
+						columns:  row,
+						datatype: map[string]string{},
+					}
+					for col, meta := range newSchema {
+						data.datatype[col] = meta["type"]
+					}
+					_ = SaveIndex(data, Data{}) // Force refresh without needing old index
+				}
+			}
+
+		}
+	}
 	return nil
 }
 

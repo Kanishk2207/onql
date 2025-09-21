@@ -102,6 +102,15 @@ class Schema:
         response = await self.sdk.request("database", json.dumps(payload))
         print(response)
         return response["payload"]
+    
+    async def RefereshIndexes(self):
+        payload = {
+            "function":"RefereshIndexes",
+            "args": []
+        }
+        response = await self.sdk.request("database", json.dumps(payload))
+        print(response)
+        return response["payload"]
 
 class Table:
     def __init__(self):

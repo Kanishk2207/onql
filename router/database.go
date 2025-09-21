@@ -150,6 +150,9 @@ func CallDatabaseFuncDirect(name string, args []json.RawMessage) (interface{}, e
 		}
 		return nil, database.DeleteTable(db, table)
 
+	case "RefereshIndexes":
+		return nil, database.RefereshIndexes()
+
 	// --- Protocol Functions ---
 	case "SetProtocol":
 		if len(args) != 2 {
