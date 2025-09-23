@@ -101,6 +101,7 @@ func (e *Evaluator) EvalTable() error {
 		return errors.New("expected access table operation")
 	}
 	// if next statement is start filteration and have
+	pos := e.Plan.Pos
 	filters := e.GenFilters()
 	var data []map[string]interface{}
 	var err error
@@ -110,6 +111,7 @@ func (e *Evaluator) EvalTable() error {
 		// Continue with table evaluation logic
 		data, err = GetTableData(stmt.Meta["db"], stmt.Meta["table"])
 	}
+	e.Plan.Pos = pos
 	if err != nil {
 		return err
 	}
