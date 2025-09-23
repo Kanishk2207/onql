@@ -93,7 +93,6 @@ func (e *Evaluator) GenFilters() []string {
 		case parser.OpLiteral:
 			// right side (value) for '='
 			colVal = stmt.Expressions.(string)
-			flush()
 
 		case parser.OpNormalOperation:
 			// expecting one of: "=", "==", "and", "or"
@@ -105,8 +104,14 @@ func (e *Evaluator) GenFilters() []string {
 				flush() // ensure previous expr emitted
 				filters = append(filters, op)
 			default:
+				return nil
 				// ignore anything else (e.g., "!=" not supported)
 			}
+		default:
+			return nil
+		}
+		if colName != "" && colVal != "" {
+			flush()
 		}
 	}
 	return filters

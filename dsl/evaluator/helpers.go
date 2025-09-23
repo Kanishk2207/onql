@@ -53,70 +53,72 @@ func GetTableData(db string, table string) ([]map[string]interface{}, error) {
 // 	return data, nil
 // }
 
-func GetTableWithDataWithFilters(db string, table string, filters []string) ([]map[string]interface{}, error) {
+func GetTableWithDataWithFilters(db, table string, filters []string) ([]map[string]interface{}, error) {
 	if len(filters) == 0 {
 		return GetTableData(db, table)
 	}
 
-	var (
-		pksAccum   []string
-		prevOp     string // "", "and", "or"
-		expectExpr = true
-	)
+	trim := func(s string) string { return strings.TrimSpace(s) }
+	isOp := func(s string) bool {
+		ls := strings.ToLower(trim(s))
+		return ls == "and" || ls == "or"
+	}
+
+	// Stack of PK sets for pending expressions.
+	stack := make([][]string, 0, len(filters))
 
 	for i, tok := range filters {
-		tok = strings.TrimSpace(tok)
+		tok = trim(tok)
 		if tok == "" {
-			return nil, fmt.Errorf("empty token at index %d", i)
+			continue
 		}
 
-		if expectExpr {
-			parts := strings.SplitN(tok, ":", 2)
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("bad filter token %q at index %d; expected 'col:value'", tok, i)
+		if isOp(tok) {
+			if len(stack) < 2 {
+				return nil, fmt.Errorf("operator %q at index %d without two preceding expressions", tok, i)
 			}
-			col, val := parts[0], parts[1]
+			right := stack[len(stack)-1]
+			left := stack[len(stack)-2]
+			stack = stack[:len(stack)-2]
 
-			pk, err := get.GetPksFromIndex(db, table, col+":"+val)
-			if err != nil {
-				return nil, err
-			}
-
-			if len(pksAccum) == 0 && prevOp == "" {
-				// first expr
-				pksAccum = dedupe(pk)
+			var merged []string
+			if strings.ToLower(tok) == "and" {
+				merged = intersect(left, right) // AND = intersection
 			} else {
-				switch prevOp {
-				case "and":
-					pksAccum = intersect(pksAccum, pk)
-				case "or":
-					pksAccum = union(pksAccum, pk)
-				default:
-					// safety: if someone passes consecutive exprs w/o op, treat as AND
-					pksAccum = intersect(pksAccum, pk)
-				}
+				merged = union(left, right) // OR = union
 			}
-			expectExpr = false
-		} else {
-			op := strings.ToLower(tok)
-			if op != "and" && op != "or" {
-				return nil, fmt.Errorf("expected logical operator 'and' or 'or' at index %d, got %q", i, tok)
-			}
-			prevOp = op
-			expectExpr = true
+			stack = append(stack, dedupe(merged))
+			continue
 		}
+
+		// Expression token: "col:val"
+		parts := strings.SplitN(tok, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("bad filter token %q at index %d; expected 'col:val'", tok, i)
+		}
+		col := trim(parts[0])
+		val := trim(parts[1])
+
+		pk, err := get.GetPksFromIndex(db, table, col+":"+val)
+		if err != nil {
+			return nil, err
+		}
+		stack = append(stack, dedupe(pk))
 	}
 
-	// If the last token was an operator (dangling), that’s an input error.
-	if expectExpr {
-		return nil, fmt.Errorf("filters end with operator %q; missing right-hand expression", prevOp)
-	}
-
-	pksAccum = dedupe(pksAccum)
-	if len(pksAccum) == 0 {
+	// After consuming all tokens, we should have exactly one PK set.
+	if len(stack) == 0 {
 		return []map[string]interface{}{}, nil
 	}
-	return get.GetWithPKs(db, table, pksAccum)
+	if len(stack) > 1 {
+		return nil, fmt.Errorf("incomplete filter: leftover %d uncombined expressions (missing operator)", len(stack)-1)
+	}
+
+	pks := dedupe(stack[0])
+	if len(pks) == 0 {
+		return []map[string]interface{}{}, nil
+	}
+	return get.GetWithPKs(db, table, pks)
 }
 
 func GetRelatedTableData(db string, relation storemanager.Relation, value string) ([]map[string]interface{}, error) {
