@@ -10,44 +10,110 @@ import (
 	"strings"
 )
 
+// func (e *Evaluator) GenFilters() []string {
+// 	stmt := e.Plan.NextStatement(true)
+// 	if stmt == nil {
+// 		return nil
+// 	}
+// 	if stmt.Operation != parser.OpStartFilter {
+// 		return nil
+// 	}
+// 	filters := make([]string, 0)
+// 	col := [2]string{}
+// 	for {
+
+// 		stmt = e.Plan.NextStatement(true)
+// 		if stmt.Operation == parser.OpEndFilter {
+// 			break
+// 		}
+// 		if stmt.Operation != parser.OpNormalOperation && stmt.Operation != parser.OpLiteral && stmt.Operation != parser.OpAccessList {
+// 			return nil
+// 		}
+// 		if stmt.Operation == parser.OpNormalOperation {
+// 			op := strings.ToLower(strings.Split(stmt.Expressions.(string), " ")[1])
+// 			if op != "and" && op != "or" && op != "=" {
+// 				return nil
+// 			}
+// 			if op == "=" {
+// 				continue
+// 			}
+// 			filters = append(filters, op)
+// 		}
+// 		if len(col) == 2 {
+// 			filters = append(filters, col[0]+":"+col[1])
+// 			col = [2]string{}
+// 		}
+// 		if stmt.Operation == parser.OpAccessList {
+// 			col[0] = stmt.Meta["name"]
+// 		}
+// 		if stmt.Operation == parser.OpLiteral {
+// 			col[1] = stmt.Expressions.(string)
+// 		}
+// 	}
+// 	return filters
+// }
+
 func (e *Evaluator) GenFilters() []string {
 	stmt := e.Plan.NextStatement(true)
-	if stmt == nil {
+	if stmt == nil || stmt.Operation != parser.OpStartFilter {
 		return nil
 	}
-	if stmt.Operation != parser.OpStartFilter {
-		return nil
-	}
-	filters := make([]string, 0)
-	col := [2]string{}
-	for {
 
+	filters := make([]string, 0, 8)
+	var colName, colVal string
+
+	flush := func() {
+		if colName != "" && colVal != "" {
+			filters = append(filters, colName+":"+colVal)
+			colName, colVal = "", ""
+		}
+	}
+
+	for {
 		stmt = e.Plan.NextStatement(true)
-		if stmt.Operation == parser.OpEndFilter {
+		if stmt == nil {
+			// malformed filter; bail out
 			break
 		}
-		if stmt.Operation != parser.OpNormalOperation && stmt.Operation != parser.OpLiteral && stmt.Operation != parser.OpAccessList {
-			return nil
+		if stmt.Operation == parser.OpEndFilter {
+			// flush the last pending expr, if any
+			flush()
+			break
 		}
-		if stmt.Operation == parser.OpNormalOperation {
-			op := strings.ToLower(strings.Split(stmt.Expressions.(string), " ")[1])
-			if op != "and" && op != "or" && op != "=" {
+
+		switch stmt.Operation {
+
+		case parser.OpAccessList:
+			// column name (e.g., account_id)
+			colName = stmt.Meta["name"]
+
+		case parser.OpLiteral:
+			// right-hand value (e.g., "samar")
+			colVal = stmt.Expressions.(string)
+			flush()
+
+		case parser.OpNormalOperation:
+			// could be '=', 'and', or 'or'
+			parts := strings.Split(stmt.Expressions.(string), " ")
+			if len(parts) < 2 {
 				return nil
 			}
+			op := strings.ToLower(parts[1])
 			if op == "=" {
+				// equality is tied to col:value; do nothing here
 				continue
 			}
+			if op != "and" && op != "or" {
+				// unsupported operator inside filter
+				return nil
+			}
+			// make sure any pending expr is flushed BEFORE the logical operator
+			flush()
 			filters = append(filters, op)
-		}
-		if len(col) == 2 {
-			filters = append(filters, col[0]+":"+col[1])
-			col = [2]string{}
-		}
-		if stmt.Operation == parser.OpAccessList {
-			col[0] = stmt.Meta["name"]
-		}
-		if stmt.Operation == parser.OpLiteral {
-			col[1] = stmt.Expressions.(string)
+
+		default:
+			// allow only the expected nodes inside [...]
+			return nil
 		}
 	}
 	return filters
