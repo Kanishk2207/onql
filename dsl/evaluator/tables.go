@@ -10,6 +10,46 @@ import (
 	"strings"
 )
 
+func (e *Evaluator) GenFilters() []string {
+	stmt := e.Plan.NextStatement(true)
+	if stmt.Operation != parser.OpStartFilter {
+		return nil
+	}
+	filters := make([]string, 0)
+	col := [2]string{}
+	for {
+
+		stmt = e.Plan.NextStatement(true)
+		if stmt.Operation == parser.OpEndFilter {
+			break
+		}
+		if stmt.Operation != parser.OpNormalOperation && stmt.Operation != parser.OpLiteral && stmt.Operation != parser.OpAccessList {
+			return nil
+		}
+		if stmt.Operation == parser.OpNormalOperation {
+			op := strings.ToLower(strings.Split(stmt.Expressions.(string), " ")[1])
+			if op != "and" && op != "or" && op != "=" {
+				return nil
+			}
+			if op == "=" {
+				continue
+			}
+			filters = append(filters, op)
+		}
+		if len(col) == 2 {
+			filters = append(filters, col[0]+":"+col[1])
+			col = [2]string{}
+		}
+		if stmt.Operation == parser.OpAccessList {
+			col[0] = stmt.Meta["name"]
+		}
+		if stmt.Operation == parser.OpLiteral {
+			col[1] = stmt.Expressions.(string)
+		}
+	}
+	return filters
+}
+
 func (e *Evaluator) EvalTableWithContext() error {
 	// Implement table evaluation logic here
 	stmt := e.Plan.NextStatement(true)
@@ -57,8 +97,16 @@ func (e *Evaluator) EvalTable() error {
 	if stmt.Operation != parser.OpAccessTable {
 		return errors.New("expected access table operation")
 	}
-	// Continue with table evaluation logic
-	data, err := GetTableData(stmt.Meta["db"], stmt.Meta["table"])
+	// if next statement is start filteration and have
+	filters := e.GenFilters()
+	var data []map[string]interface{}
+	var err error
+	if filters != nil {
+		data, err = GetTableWithDataWithFilters(stmt.Meta["db"], stmt.Meta["table"], filters)
+	} else {
+		// Continue with table evaluation logic
+		data, err = GetTableData(stmt.Meta["db"], stmt.Meta["table"])
+	}
 	if err != nil {
 		return err
 	}

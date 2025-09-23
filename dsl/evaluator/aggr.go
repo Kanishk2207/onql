@@ -32,6 +32,7 @@ var AggrRegistry = map[string]func(stmt *parser.Statement, data interface{}, agg
 	"_date":   _date,
 	"_asc":    _asc,
 	"_desc":   _desc,
+	// "_date"
 }
 
 func (e *Evaluator) EvalAggr() error {
@@ -357,39 +358,6 @@ func _max(stmt *parser.Statement, data interface{}, aggrObj parser.Aggr, e *Eval
 	return nil
 }
 
-// _date: reduces a LIST of epoch times to a single formatted string.
-// - takes the first element;
-// - supports seconds or milliseconds epoch;
-// - optional arg[0] can specify format (Go time layout). Default: "2006-01-02 15:04:05".
-func _date(stmt *parser.Statement, data interface{}, aggrObj parser.Aggr, e *Evaluator) error {
-	var layout string
-	if len(aggrObj.Args) > 0 && aggrObj.Args[0] != "" {
-		layout = aggrObj.Args[0]
-	} else {
-		layout = "2006-01-02 15:04:05"
-	}
-
-	var epoch float64
-	switch t := data.(type) {
-	case []float64:
-		if len(t) == 0 {
-			return fmt.Errorf("_date: empty list")
-		}
-		epoch = t[0]
-	default:
-		return fmt.Errorf("_date: expected LIST of numbers (epoch), got %T", data)
-	}
-
-	// seconds vs milliseconds heuristic
-	sec := int64(epoch)
-	if epoch > 1e12 { // looks like ms
-		sec = int64(epoch / 1000)
-	}
-	dt := time.Unix(sec, 0).UTC()
-	e.SetMemoryValue(stmt.Name, dt.Format(layout))
-	return nil
-}
-
 func _unique(stmt *parser.Statement, data interface{}, aggrObj parser.Aggr, e *Evaluator) error {
 	switch t := data.(type) {
 
@@ -478,4 +446,161 @@ func makeCompositeKey(row map[string]interface{}, cols []string) string {
 		}
 	}
 	return b.String()
+}
+
+func _date(stmt *parser.Statement, data interface{}, aggrObj parser.Aggr, e *Evaluator) error {
+	// Default layout; override via args.
+	// TABLE input: args[0]=column (required), args[1]=layout (optional)
+	// Others (LIST/NUMBER/FIELD): args[0]=layout (optional)
+	layout := "2006-01-02 15:04:05"
+	var col string
+
+	switch data.(type) {
+	case []map[string]interface{}: // TABLE
+		if len(aggrObj.Args) == 0 || aggrObj.Args[0] == "" {
+			return fmt.Errorf("_date: table input requires column name as first arg")
+		}
+		col = aggrObj.Args[0]
+		if len(aggrObj.Args) > 1 && aggrObj.Args[1] != "" {
+			layout = aggrObj.Args[1]
+		}
+	default:
+		if len(aggrObj.Args) > 0 && aggrObj.Args[0] != "" {
+			layout = aggrObj.Args[0]
+		}
+	}
+
+	var sec int64
+	found := false
+
+	// Heuristic: >1e12 → milliseconds
+	asSec := func(f float64) int64 {
+		if f > 1e12 {
+			return int64(f / 1000)
+		}
+		return int64(f)
+	}
+
+	switch t := data.(type) {
+
+	// ----- literal numeric / string -----
+	case float64:
+		sec, found = asSec(t), true
+	case float32:
+		sec, found = asSec(float64(t)), true
+	case int:
+		sec, found = asSec(float64(t)), true
+	case int64:
+		sec, found = asSec(float64(t)), true
+	case int32:
+		sec, found = asSec(float64(t)), true
+	case uint, uint32, uint64:
+		sec, found = asSec(float64(fmt.Sprint(t)[0])), true // will be overridden below
+		// handle uints precisely:
+		switch v := data.(type) {
+		case uint:
+			sec = asSec(float64(v))
+		case uint32:
+			sec = asSec(float64(v))
+		case uint64:
+			sec = asSec(float64(v))
+		}
+	case string:
+		if f, err := strconv.ParseFloat(strings.TrimSpace(t), 64); err == nil {
+			sec, found = asSec(f), true
+		} else {
+			return fmt.Errorf("_date: string literal not numeric: %q", t)
+		}
+
+	// ----- list shapes -----
+	case []float64:
+		if len(t) == 0 {
+			return fmt.Errorf("_date: empty []float64")
+		}
+		sec, found = asSec(t[0]), true
+
+	case []string:
+		if len(t) == 0 {
+			return fmt.Errorf("_date: empty []string")
+		}
+		if f, err := strconv.ParseFloat(strings.TrimSpace(t[0]), 64); err == nil {
+			sec, found = asSec(f), true
+		} else {
+			return fmt.Errorf("_date: first string not numeric: %q", t[0])
+		}
+
+	case []interface{}:
+		for _, v := range t {
+			switch vv := v.(type) {
+			case float64:
+				sec, found = asSec(vv), true
+			case float32:
+				sec, found = asSec(float64(vv)), true
+			case int:
+				sec, found = asSec(float64(vv)), true
+			case int64:
+				sec, found = asSec(float64(vv)), true
+			case int32:
+				sec, found = asSec(float64(vv)), true
+			case uint:
+				sec, found = asSec(float64(vv)), true
+			case uint32:
+				sec, found = asSec(float64(vv)), true
+			case uint64:
+				sec, found = asSec(float64(vv)), true
+			case string:
+				if f, err := strconv.ParseFloat(strings.TrimSpace(vv), 64); err == nil {
+					sec, found = asSec(f), true
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("_date: no convertible element in []interface{}")
+		}
+
+	// ----- table shape -----
+	case []map[string]interface{}:
+		for _, r := range t {
+			if v, ok := r[col]; ok {
+				switch vv := v.(type) {
+				case float64:
+					sec, found = asSec(vv), true
+				case float32:
+					sec, found = asSec(float64(vv)), true
+				case int:
+					sec, found = asSec(float64(vv)), true
+				case int64:
+					sec, found = asSec(float64(vv)), true
+				case int32:
+					sec, found = asSec(float64(vv)), true
+				case uint:
+					sec, found = asSec(float64(vv)), true
+				case uint32:
+					sec, found = asSec(float64(vv)), true
+				case uint64:
+					sec, found = asSec(float64(vv)), true
+				case string:
+					if f, err := strconv.ParseFloat(strings.TrimSpace(vv), 64); err == nil {
+						sec, found = asSec(f), true
+					}
+				}
+			}
+			if found {
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("_date: no convertible value found in column %q", col)
+		}
+
+	default:
+		return fmt.Errorf("_date: unsupported input %T", data)
+	}
+
+	dt := time.Unix(sec, 0).UTC()
+	e.SetMemoryValue(stmt.Name, dt.Format(layout))
+	return nil
 }

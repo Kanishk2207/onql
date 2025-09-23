@@ -11,10 +11,10 @@ var AggrRegistry = map[string]map[string]string{
 	"_avg":    {"LIST": "NUMBER"},
 	"_min":    {"LIST": "NUMBER"},
 	"_max":    {"LIST": "NUMBER"},
-	"_date":   {"LIST": "STRING"},
 	"_unique": {"LIST": "LIST", "TABLE": "TABLE"},
 	"_asc":    {"LIST": "LIST", "TABLE": "TABLE"},
 	"_desc":   {"LIST": "LIST", "TABLE": "TABLE"},
+	"_date":   {"LIST": "STRING", "FIELD": "STRING", "NUMBER": "STRING", "TABLE": "STRING"},
 }
 
 func (plan *Plan) ParseAggr(stmt *Statement, dependency string) error {
