@@ -12,6 +12,9 @@ import (
 
 func (e *Evaluator) GenFilters() []string {
 	stmt := e.Plan.NextStatement(true)
+	if stmt == nil {
+		return nil
+	}
 	if stmt.Operation != parser.OpStartFilter {
 		return nil
 	}
