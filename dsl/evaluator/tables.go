@@ -63,57 +63,50 @@ func (e *Evaluator) GenFilters() []string {
 	var colName, colVal string
 
 	flush := func() {
-		if colName != "" && colVal != "" {
-			filters = append(filters, colName+":"+colVal)
-			colName, colVal = "", ""
+		if colName == "" || colVal == "" {
+			return
 		}
+		v := strings.TrimSpace(colVal)
+		// strip quotes if present
+		if n := len(v); n >= 2 && ((v[0] == '"' && v[n-1] == '"') || (v[0] == '\'' && v[n-1] == '\'')) {
+			v = v[1 : n-1]
+		}
+		filters = append(filters, colName+":"+v)
+		colName, colVal = "", ""
 	}
 
 	for {
 		stmt = e.Plan.NextStatement(true)
 		if stmt == nil {
-			// malformed filter; bail out
 			break
 		}
 		if stmt.Operation == parser.OpEndFilter {
-			// flush the last pending expr, if any
 			flush()
 			break
 		}
 
 		switch stmt.Operation {
-
 		case parser.OpAccessList:
-			// column name (e.g., account_id)
+			// left side (column)
 			colName = stmt.Meta["name"]
 
 		case parser.OpLiteral:
-			// right-hand value (e.g., "samar")
+			// right side (value) for '='
 			colVal = stmt.Expressions.(string)
 			flush()
 
 		case parser.OpNormalOperation:
-			// could be '=', 'and', or 'or'
-			parts := strings.Split(stmt.Expressions.(string), " ")
-			if len(parts) < 2 {
-				return nil
+			// expecting one of: "=", "==", "and", "or"
+			op := strings.ToLower(strings.TrimSpace(stmt.Expressions.(string)))
+			switch op {
+			case "=", "==":
+				// do nothing here; we'll flush when literal arrives
+			case "and", "or":
+				flush() // ensure previous expr emitted
+				filters = append(filters, op)
+			default:
+				// ignore anything else (e.g., "!=" not supported)
 			}
-			op := strings.ToLower(parts[1])
-			if op == "=" {
-				// equality is tied to col:value; do nothing here
-				continue
-			}
-			if op != "and" && op != "or" {
-				// unsupported operator inside filter
-				return nil
-			}
-			// make sure any pending expr is flushed BEFORE the logical operator
-			flush()
-			filters = append(filters, op)
-
-		default:
-			// allow only the expected nodes inside [...]
-			return nil
 		}
 	}
 	return filters
