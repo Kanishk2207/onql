@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"onql/dsl/parser"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +33,8 @@ var AggrRegistry = map[string]func(stmt *parser.Statement, data interface{}, agg
 	"_date":   _date,
 	"_asc":    _asc,
 	"_desc":   _desc,
+	"_like":   _like,
+
 	// "_date"
 }
 
@@ -602,5 +605,78 @@ func _date(stmt *parser.Statement, data interface{}, aggrObj parser.Aggr, e *Eva
 
 	dt := time.Unix(sec, 0).UTC()
 	e.SetMemoryValue(stmt.Name, dt.Format(layout))
+	return nil
+}
+
+func _like(stmt *parser.Statement, data interface{}, aggrObj parser.Aggr, e *Evaluator) error {
+	if len(aggrObj.Args) == 0 {
+		return fmt.Errorf("_like: missing pattern argument")
+	}
+
+	var pattern string
+	var columnName string
+
+	inputType := stmt.Meta["input_type"]
+
+	if inputType == "TABLE" {
+		if len(aggrObj.Args) < 2 {
+			return fmt.Errorf("_like: table input requires a column name and a pattern")
+		}
+		columnName = aggrObj.Args[0]
+		pattern = aggrObj.Args[1]
+	} else {
+		pattern = aggrObj.Args[0]
+	}
+
+	// Convert SQL LIKE to regex
+	regexPatternStr := strings.ReplaceAll(pattern, "%", ".*")
+	regexPatternStr = strings.ReplaceAll(regexPatternStr, "_", ".")
+	regexPattern, err := regexp.Compile("^" + regexPatternStr + "$")
+	if err != nil {
+		return fmt.Errorf("_like: invalid pattern: %w", err)
+	}
+
+	found := false
+
+	switch values := data.(type) {
+	case string: // This would be a FIELD
+		found = regexPattern.MatchString(values)
+	case []string: // This would be a LIST of strings
+		for _, s := range values {
+			if regexPattern.MatchString(s) {
+				found = true
+				break
+			}
+		}
+	case []interface{}:
+		for _, item := range values {
+			if s, ok := item.(string); ok {
+				if regexPattern.MatchString(s) {
+					found = true
+					break
+				}
+			}
+		}
+	case []map[string]interface{}: // This is a TABLE
+		for _, row := range values {
+			if val, ok := row[columnName]; ok {
+				if s, ok := val.(string); ok {
+					if regexPattern.MatchString(s) {
+						found = true
+						break
+					}
+				}
+			}
+		}
+	default:
+		return fmt.Errorf("_like: unsupported input type %T", data)
+	}
+
+	result := false
+	if found {
+		result = true
+	}
+
+	e.SetMemoryValue(stmt.Name, result)
 	return nil
 }
