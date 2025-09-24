@@ -139,8 +139,12 @@ func (e *Evaluator) EvalTableWithContext() error {
 		return e.EvalTable()
 	}
 	for i, v := range e.ContextValues {
-		cntxQuery = strings.Replace(cntxQuery, "$"+strconv.Itoa(i+1), "\""+v+"\"", 1)
-	}
+			replacement := v
+			if !(strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"")) {
+				replacement = "\"" + v + "\""
+			}
+			cntxQuery = strings.Replace(cntxQuery, "$"+strconv.Itoa(i+1), replacement, 1)
+		}
 	lexer := parser.NewLexer(cntxQuery)
 	plan := parser.NewPlan(lexer, e.Plan.ProtocolPass)
 	err = plan.Parse()
