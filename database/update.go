@@ -58,6 +58,13 @@ func Update(db, table string, record map[string]interface{}) error {
 					}
 					record[col] = val
 				}
+			}else {
+				if colSchema["type"] == "timestamp" {
+					switch v := record[col].(type) {
+					case float64:
+						record[col] = int64(v)
+					}
+				}
 			}
 		}
 	}
@@ -121,6 +128,13 @@ func UpdatePartial(db, table string, record map[string]interface{}) error {
 						return err
 					}
 					record[col] = val
+				}
+			} else {
+				if colSchema["type"] == "timestamp" {
+					switch v := record[col].(type) {
+					case float64:
+						record[col] = int64(v)
+					}
 				}
 			}
 		}
