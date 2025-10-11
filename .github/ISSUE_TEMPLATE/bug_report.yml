@@ -1,0 +1,47 @@
+name: 🐞 Bug report
+description: Create a report to help us improve ONQL
+labels: [bug]
+title: "[BUG]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!  
+        Please fill out the details below.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      placeholder: What went wrong? Include commands, queries, or stack traces.
+      description: A clear and concise description of what the bug is.
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start server
+        2. Run ONQL query
+        3. See error
+      description: How can we reproduce the issue?
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened instead?
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: Go version, OS, ONQL version, database backend, etc.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues
+        - label: I have attached logs or stack traces
