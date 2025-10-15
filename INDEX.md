@@ -1,6 +1,6 @@
 # ONQL Project Index
 
-Welcome to the Onqlbgfinal project! This document provides an overview of the project structure to help you navigate the codebase and contribute effectively.
+Welcome to the ONQL project! This document provides an overview of the project structure to help you navigate the codebase and contribute effectively.
 
 ## Project Structure
 
@@ -27,7 +27,7 @@ This project is organized into several Go packages, each with a specific respons
 
 ## Contributing
 
-We welcome community contributions! There are many ways to contribute to the Onqlbgfinal project. Here are a few areas where you can help:
+We welcome community contributions! There are many ways to contribute to the ONQL project. Here are a few areas where you can help:
 
 *   **DSL Enhancements**:
     *   Solve bugs in the ONQL DSL.
@@ -50,5 +50,5 @@ If you're interested in contributing, please take a look at the following:
 2.  **Code Style**: Please follow the existing code style and conventions.
 3.  **Pull Requests**: When submitting a pull request, please provide a clear description of the changes and why they are needed.
 
-Thank you for your interest in Onqlbgfinal!
+Thank you for your interest in ONQL!
 
