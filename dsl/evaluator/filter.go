@@ -141,64 +141,133 @@ func (e *Evaluator) EvalSlice() error {
 		return errors.New("expected array for row access for table row access")
 	}
 
-	// Parse slice indices
-	start, end, step := 0, len(arr), 1
-	var err error
+	arrLen := len(arr)
 
-	if len(sliceParts) > 0 && sliceParts[0] != "" {
-		start, err = strconv.Atoi(sliceParts[0])
-		if err != nil {
-			return fmt.Errorf("invalid start index: %v", err)
-		}
-		if start < 0 {
-			start = len(arr) + start
-		}
-	}
-	if len(sliceParts) > 1 && sliceParts[1] != "" {
-		end, err = strconv.Atoi(sliceParts[1])
-		if err != nil {
-			return fmt.Errorf("invalid end index: %v", err)
-		}
-		if end < 0 {
-			end = len(arr) + end
-		}
-	}
+	// Parse step first to determine direction
+	step := 1
+	var err error
 	if len(sliceParts) > 2 && sliceParts[2] != "" {
 		step, err = strconv.Atoi(sliceParts[2])
 		if err != nil {
 			return fmt.Errorf("invalid step: %v", err)
 		}
 		if step == 0 {
-			step = 1
+			return fmt.Errorf("slice step cannot be zero")
 		}
 	}
 
-	// Clamp indices
-	if start < 0 {
-		start = 0
+	// Use pointers to track whether values were explicitly provided
+	var startPtr, endPtr *int
+
+	// Parse start if provided
+	if len(sliceParts) > 0 && sliceParts[0] != "" {
+		s, err := strconv.Atoi(sliceParts[0])
+		if err != nil {
+			return fmt.Errorf("invalid start index: %v", err)
+		}
+		startPtr = &s
 	}
-	if start > len(arr) {
-		start = len(arr)
+
+	// Parse end if provided
+	if len(sliceParts) > 1 && sliceParts[1] != "" {
+		e, err := strconv.Atoi(sliceParts[1])
+		if err != nil {
+			return fmt.Errorf("invalid end index: %v", err)
+		}
+		endPtr = &e
 	}
-	if end > len(arr) {
-		end = len(arr)
+
+	// Normalize indices and apply defaults based on step direction
+	var actualStart, actualEnd int
+
+	if step > 0 {
+		// Forward slicing defaults and normalization
+		if startPtr == nil {
+			actualStart = 0
+		} else {
+			actualStart = *startPtr
+			// Handle negative indices
+			if actualStart < 0 {
+				actualStart += arrLen
+			}
+			// Clamp to valid range
+			if actualStart < 0 {
+				actualStart = 0
+			} else if actualStart > arrLen {
+				actualStart = arrLen
+			}
+		}
+
+		if endPtr == nil {
+			actualEnd = arrLen
+		} else {
+			actualEnd = *endPtr
+			// Handle negative indices
+			if actualEnd < 0 {
+				actualEnd += arrLen
+			}
+			// Clamp to valid range
+			if actualEnd < 0 {
+				actualEnd = 0
+			} else if actualEnd > arrLen {
+				actualEnd = arrLen
+			}
+		}
+	} else {
+		// Backward slicing defaults and normalization
+		if startPtr == nil {
+			actualStart = arrLen - 1
+		} else {
+			actualStart = *startPtr
+			// Handle negative indices
+			if actualStart < 0 {
+				actualStart += arrLen
+			}
+			// Clamp to valid range
+			if actualStart >= arrLen {
+				actualStart = arrLen - 1
+			}
+			// If still negative after normalization, the slice will be empty
+			if actualStart < 0 {
+				e.SetMemoryValue(stmt.Name, []interface{}{})
+				return nil
+			}
+		}
+
+		if endPtr == nil {
+			// Default end for negative step is "before first element"
+			actualEnd = -1
+		} else {
+			actualEnd = *endPtr
+			// Handle negative indices
+			if actualEnd < 0 {
+				actualEnd += arrLen
+			}
+			// For negative step, actualEnd is exclusive (we stop at actualEnd + 1)
+			// Clamp to valid range
+			if actualEnd < -1 {
+				actualEnd = -1
+			} else if actualEnd >= arrLen {
+				actualEnd = arrLen - 1
+			}
+		}
 	}
-	if end < 0 {
-		end = 0
-	}
-	// INFO: We can support backward slicing with negative step in future
-	if start > end {
-		return errors.ErrUnsupported
-	}
-	// Build the sliced result
+
+	// Build result
 	result := make([]interface{}, 0)
-	for i := start; i < end; i += step {
-		result = append(result, arr[i])
+
+	if step > 0 {
+		// Forward iteration: go from actualStart to actualEnd (exclusive)
+		for i := actualStart; i < actualEnd; i += step {
+			result = append(result, arr[i])
+		}
+	} else {
+		// Backward iteration: go from actualStart down to actualEnd (exclusive)
+		for i := actualStart; i > actualEnd; i += step {
+			result = append(result, arr[i])
+		}
 	}
 
-	// result2,ok := result.([]map[string]interface{})
-
-	// e.Memory[stmt.Name] = result
 	e.SetMemoryValue(stmt.Name, result)
 	return nil
 }
